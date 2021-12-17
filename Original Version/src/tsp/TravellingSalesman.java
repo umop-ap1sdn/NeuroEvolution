@@ -1,5 +1,6 @@
 package tsp;
 
+import java.time.Instant;
 import java.util.Arrays;
 
 import neuroEvo.GenomeNet;
@@ -17,22 +18,32 @@ public class TravellingSalesman {
 			countries[x] = new Map(NUM_OF_CITIES, RANGE);
 		}
 		
-		Population population = new Population(NUM_OF_CITIES * 2, NUM_OF_CITIES, 50);
+		long start = Instant.now().getEpochSecond();
+		
+		Population population = new Population(NUM_OF_CITIES * 2, NUM_OF_CITIES, 50, false);
 		
 		GenomeNet best = null;
 		double topFitness = 0;
-		int generation = 0;;
+		int generation = 0;
+		int[][] bestOutputs = null;
 		
-		for(int x = 0; x < 10000; x++) {
+		for(int x = 0; x < 5000; x++) {
+			
+			int[][][] outputs = new int[population.getSize()][NUM_OF_POINTS][NUM_OF_CITIES];
 			for(int y = 0; y < population.getPopulation().length; y++) {
 				
 				population.getGenome(y).setFitness(500);
+				
+				//System.out.printf("Genome %d, connections size %d%n", y, population.getGenome(y).connections.size());
+				
+				
 				for(int z = 0; z < NUM_OF_POINTS; z++) {
 					
 					double[] output = population.getGenome(y).calculate(countries[z].location1D());
 					int[] trueOutput = getOrder(output);
 					double distance = getTotalDistance(countries[z].getDistance(), trueOutput);
 					population.getGenome(y).increaseFitness(distance * -1);
+					outputs[y][z] = trueOutput;
 					
 					print(trueOutput, distance);
 				}
@@ -40,12 +51,24 @@ public class TravellingSalesman {
 				double fitness = population.getGenome(y).getFitness();
 				System.out.printf("Final Fitness %.2f%n", fitness);
 				
-				if(fitness >= topFitness) {
-					best = population.getGenome(y);
-					topFitness = fitness;
-					generation = population.getGeneration();
-				}
 				
+				//System.out.printf("Genome %d, connections size %d%n", y, population.getGenome(y).connections.size());
+				
+			}
+			
+			if(population.getGenome(population.getHighestIndex()).getFitness() > topFitness) {
+				bestOutputs = outputs[population.getHighestIndex()];
+				
+				topFitness = population.getHighestFitness().getFitness();
+				best = population.getHighestFitness();
+				generation = population.getGeneration();
+				
+				
+				
+			}
+			
+			if(population.getHighestFitness().getFitness() == topFitness) {
+				generation = population.getGeneration();
 			}
 			
 			population.breed();
@@ -74,7 +97,9 @@ public class TravellingSalesman {
 			
 			double[] output =  best.calculate(countries[z].location1D());
 			int[] trueOutput = getOrder(output);
-			double distance = getTotalDistance(countries[z].getDistance(), trueOutput);
+			
+			int[] savedOutput = bestOutputs[z];
+			double distance = getTotalDistance(countries[z].getDistance(), savedOutput);
 			
 			print(trueOutput, distance);
 		}
@@ -82,6 +107,12 @@ public class TravellingSalesman {
 		System.out.printf("Best Fitness %.2f From generation %d%n%n", topFitness, generation);
 		
 		population.testGeneticDiversity();
+		
+		long end = Instant.now().getEpochSecond();
+		
+		int total = (int)(end - start);
+		System.out.println("\nTotal runtime: " + total);
+		
 	}
 	
 	public static void print(int[] output, double distance) {
